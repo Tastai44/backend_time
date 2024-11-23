@@ -132,8 +132,6 @@ app.post('/login', async (req: Request, res: Response) => {
     }
 });
 
-
-
 // Create a project
 app.post('/projects', async (req: Request, res: Response) => {
     try {
@@ -150,6 +148,21 @@ app.post('/projects', async (req: Request, res: Response) => {
             },
         });
         res.status(201).json(project);
+    } catch (error) {
+        if (error instanceof Error) {
+            res.status(500).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: 'An unexpected error occurred' });
+        }
+    }
+});
+app.get('/projects/:userId', async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+        const project = await prisma.project.findMany({
+            where: { ownerId: userId }
+        });
+        res.status(200).json(project);
     } catch (error) {
         if (error instanceof Error) {
             res.status(500).json({ error: error.message });
