@@ -60,7 +60,6 @@ app.get('/', (req: Request, res: Response) => {
 app.get('/users', async (req: Request, res: Response) => {
     try {
         const users = await prisma.user.findMany();
-        console.log(users);
         res.status(200).json(users);
     } catch (error) {
         if (error instanceof Error) {
@@ -117,7 +116,7 @@ app.post('/login', async (req: Request, res: Response) => {
 
         if (user && (await bcrypt.compare(password, user.password))) {
             // Generate a JWT token
-            const token = jwt.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+            const token = jwt.sign({ userId: user.id, email: user.email, name: user.name }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
 
             // Send the token to the client
             res.status(200).json(token);
