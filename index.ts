@@ -116,7 +116,7 @@ app.post('/login', async (req: Request, res: Response) => {
 
         if (user && (await bcrypt.compare(password, user.password))) {
             // Generate a JWT token
-            const token = jwt.sign({ userId: user.id, email: user.email, name: user.name }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+            const token = jwt.sign({ userId: user.id, email: user.email, name: user.name }, process.env.JWT_SECRET as string, { expiresIn: '10h' });
 
             // Send the token to the client
             res.status(200).json(token);
