@@ -172,6 +172,30 @@ app.get('/projects/:userId', async (req: Request, res: Response) => {
     }
 });
 
+app.delete('/projects/:id/:userId', async (req: Request, res: Response) => {
+    try {
+        const { id, userId } = req.params;
+        // Check if the project exists and is owned by the user
+        const project = await prisma.project.findFirst({
+            where: { id: id, ownerId: userId }
+        });
+
+        // Delete the project
+        await prisma.project.delete({
+            where: { id: id },
+        });
+        res.status(200).json({ message: 'Project deleted successfully' });
+
+    } catch (error) {
+        if (error instanceof Error) {
+            res.status(500).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: 'An unexpected error occurred' });
+        }
+    }
+});
+
+
 // Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
