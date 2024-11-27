@@ -172,11 +172,62 @@ app.get('/projects/:userId', async (req: Request, res: Response) => {
     }
 });
 
+app.get('/projectsById/:id', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const project = await prisma.project.findMany({
+            where: { id: id }
+        });
+        res.status(200).json(project);
+    } catch (error) {
+        if (error instanceof Error) {
+            res.status(500).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: 'An unexpected error occurred' });
+        }
+    }
+});
+
+app.put('/projects/:id/:userId', async (req: Request, res: Response) => {
+    try {
+        const { id, userId } = req.params;
+        const { groupName, projectName, description, startDate, endDate, status, ownerId } = req.body;
+
+        // Find the project by ID to ensure it exists and belongs to the right user
+        const project = await prisma.project.findUnique({
+            where: { id: id },
+        });
+
+        // Update the project
+        const updatedProject = await prisma.project.update({
+            where: { id: id },
+            data: {
+                groupName,
+                projectName,
+                description,
+                startDate: new Date(startDate),
+                endDate: new Date(endDate),
+                status,
+                owner: { connect: { id: ownerId } },
+            },
+        });
+
+        res.status(200).json(updatedProject);
+    } catch (error) {
+        if (error instanceof Error) {
+            res.status(500).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: 'An unexpected error occurred' });
+        }
+    }
+});
+
+
 app.delete('/projects/:id/:userId', async (req: Request, res: Response) => {
     try {
         const { id, userId } = req.params;
         // Check if the project exists and is owned by the user
-        const project = await prisma.project.findFirst({
+        await prisma.project.findFirst({
             where: { id: id, ownerId: userId }
         });
 
