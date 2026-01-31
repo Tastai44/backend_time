@@ -93,15 +93,34 @@ app.get('/users/:id', async (req: Request, res: Response) => {
 });
 
 // Create a user
-app.post('/register', async (req: Request, res: Response) => {
+app.post('/register', async (req: Request, res: Response): Promise<void> => {
     try {
         const { name, email, password } = req.body;
+
+        if (!name || !email || !password) {
+            res.status(400).json({ error: 'Name, email, and password are required' });
+            return;
+        }
+
+        const existingUser = await prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (existingUser) {
+            res.status(409).json({ error: 'User already exists' });
+            return;
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = await prisma.user.create({
             data: { name, email, password: hashedPassword, },
         });
-        res.status(201).json(user);
+
+        const { password: _, ...userWithoutPassword } = user;
+
+        res.status(201).json(userWithoutPassword);
     } catch (error) {
+        console.error('Registration Error:', error);
         if (error instanceof Error) {
             res.status(500).json({ error: error.message });
         } else {
