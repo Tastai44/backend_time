@@ -10,7 +10,7 @@ const app = express();
 const prisma = new PrismaClient();
 
 app.use(cors({
-    origin: ['https://time-management-eta.vercel.app', 'http://localhost:3000'],
+    origin: ['https://time-management-eta.vercel.app', 'http://localhost:3001'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -62,7 +62,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Get all users
-app.get('/users', async (req: Request, res: Response) => {
+app.get('/users', verifyToken, async (req: Request, res: Response) => {
     try {
         const users = await prisma.user.findMany();
         res.status(200).json(users);
@@ -76,7 +76,7 @@ app.get('/users', async (req: Request, res: Response) => {
 });
 
 // Get a specific user by ID
-app.get('/users/:id', async (req: Request, res: Response) => {
+app.get('/users/:id', verifyToken, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const user = await prisma.user.findUnique({
@@ -157,9 +157,16 @@ app.post('/login', async (req: Request, res: Response) => {
 });
 
 // Create a project
-app.post('/projects', async (req: Request, res: Response) => {
+app.post('/projects', verifyToken, async (req: CustomRequest, res: Response) => {
     try {
-        const { groupName, projectName, description, startDate, endDate, status, ownerId } = req.body;
+        const { groupName, projectName, description, startDate, endDate, status } = req.body;
+        const ownerId = req.user?.userId;
+
+        if (!ownerId) {
+            res.status(400).json({ error: 'User ID missing from token' });
+            return;
+        }
+
         const project = await prisma.project.create({
             data: {
                 groupName,
@@ -180,9 +187,9 @@ app.post('/projects', async (req: Request, res: Response) => {
         }
     }
 });
-app.get('/projects/:userId', async (req: Request, res: Response) => {
+app.get('/projects', verifyToken, async (req: CustomRequest, res: Response) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user?.userId;
         const project = await prisma.project.findMany({
             where: { ownerId: userId }
         });
@@ -196,7 +203,7 @@ app.get('/projects/:userId', async (req: Request, res: Response) => {
     }
 });
 
-app.get('/projectsById/:id', async (req: Request, res: Response) => {
+app.get('/projectsById/:id', verifyToken, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const project = await prisma.project.findMany({
@@ -212,15 +219,26 @@ app.get('/projectsById/:id', async (req: Request, res: Response) => {
     }
 });
 
-app.put('/projects/:id/:userId', async (req: Request, res: Response) => {
+app.put('/projects/:id', verifyToken, async (req: CustomRequest, res: Response) => {
     try {
-        const { id, userId } = req.params;
-        const { groupName, projectName, description, startDate, endDate, status, ownerId } = req.body;
+        const { id } = req.params;
+        const userId = req.user?.userId;
+        const { groupName, projectName, description, startDate, endDate, status } = req.body;
 
         // Find the project by ID to ensure it exists and belongs to the right user
         const project = await prisma.project.findUnique({
             where: { id: id },
         });
+
+        if (!project) {
+            res.status(404).json({ error: 'Project not found' });
+            return;
+        }
+
+        if (project.ownerId !== userId) {
+            res.status(403).json({ error: 'Unauthorized to update this project' });
+            return;
+        }
 
         // Update the project
         const updatedProject = await prisma.project.update({
@@ -232,7 +250,6 @@ app.put('/projects/:id/:userId', async (req: Request, res: Response) => {
                 startDate: new Date(startDate),
                 endDate: new Date(endDate),
                 status,
-                owner: { connect: { id: ownerId } },
             },
         });
 
@@ -247,13 +264,20 @@ app.put('/projects/:id/:userId', async (req: Request, res: Response) => {
 });
 
 
-app.delete('/projects/:id/:userId', async (req: Request, res: Response) => {
+app.delete('/projects/:id', verifyToken, async (req: CustomRequest, res: Response) => {
     try {
-        const { id, userId } = req.params;
+        const { id } = req.params;
+        const userId = req.user?.userId;
+
         // Check if the project exists and is owned by the user
-        await prisma.project.findFirst({
+        const project = await prisma.project.findFirst({
             where: { id: id, ownerId: userId }
         });
+
+        if (!project) {
+            res.status(404).json({ error: 'Project not found or unauthorized' });
+            return;
+        }
 
         // Delete the project
         await prisma.project.delete({
