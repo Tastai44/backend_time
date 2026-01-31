@@ -8,15 +8,16 @@ import dotenv from 'dotenv';
 
 const app = express();
 const prisma = new PrismaClient();
+dotenv.config();
 
 app.use(cors({
-    origin: ['https://time-management-eta.vercel.app'],
+    origin: [process.env.CLIENT_URL ?? "*"],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
 app.use(bodyParser.json());
-dotenv.config();
+
 
 interface User {
     userId: string;
